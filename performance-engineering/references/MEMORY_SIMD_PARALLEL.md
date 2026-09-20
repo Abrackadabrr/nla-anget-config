@@ -1,27 +1,43 @@
-# Memory, SIMD, and Parallelism
+# Memory, SIMD, and parallelism
 
 ## Memory first
 
-- eliminate repeated allocations from hot loops;
-- keep frequently reused data contiguous;
-- avoid full-size temporaries where a view/workspace suffices;
-- consider blocking when the same data can be reused from cache.
+- remove heap allocation from hot apply/iteration paths;
+- reuse workspaces;
+- keep reused data contiguous where practical;
+- minimize whole-array temporaries;
+- consider cache blocking when repeated reuse exists.
 
 ## SIMD
 
 Before manual intrinsics:
 
-1. enable appropriate compiler optimization/architecture flags;
-2. inspect whether simple loops auto-vectorize;
-3. avoid aliasing/stride patterns that block vectorization;
-4. use manual intrinsics only when measured benefit justifies complexity.
+1. compile optimized;
+2. inspect compiler vectorization diagnostics or generated code for the hot
+   loop;
+3. fix aliasing/stride/control-flow barriers;
+4. benchmark;
+5. use intrinsics only if a material bottleneck remains.
 
-## Parallelism
+Manual SIMD is not a substitute for choosing a better BLAS-level algorithm.
 
-Avoid oversubscription. Coordinate OpenMP, BLAS threads, FFTW threads, and MPI.
+## Threads
 
-Benchmark one thread first. Then measure scaling rather than assuming more
-threads are faster.
+Start with a one-thread benchmark.
 
-For NUMA-scale work, consider first-touch placement and partitioning of large
-buffers.
+Coordinate:
+
+- OpenMP/task threads;
+- BLAS threads;
+- FFTW threads;
+- MPI ranks.
+
+Avoid accidental nested oversubscription.
+
+For NUMA-sized buffers, consider first-touch and stable thread/data ownership.
+
+## False sharing
+
+When threads independently update nearby small outputs, inspect cache-line
+sharing. Prefer thread-local accumulation followed by a controlled reduction
+when that reduces contention and memory traffic.

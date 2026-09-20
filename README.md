@@ -1,52 +1,50 @@
 # nla-anget-config
 
-Shared Codex skills for performance-oriented numerical linear algebra in C/C++.
+Shared Codex skills for performance-oriented numerical linear algebra and
+scientific C/C++.
 
-The agent should prefer correctness first, then measurement, then optimization.
-Unless the user explicitly prioritizes API convenience, genericity, or
-maintainability, performance and memory traffic are the default optimization
-targets.
+The repository is designed to be mounted directly under `.agents/skills`.
 
-This repository is laid out so that it can be mounted directly as
-`.agents/skills`:
+## Design philosophy
 
-```bash
-mkdir -p .agents
-git submodule add https://github.com/Abrackadabrr/nla-anget-config.git .agents/skills
-```
+Correctness comes first. Optimization begins only after a clear reference path
+works and is validated.
 
-## Skills
+After correctness is established, runtime, memory traffic, and scalability are
+the default priorities unless the user explicitly prioritizes convenience,
+genericity, API simplicity, or maintainability.
 
-- `linear-algebra-backends`: BLAS, LAPACK, Eigen, FFTW, and the
-  library-vs-custom decision.
-- `structured-matrices`: Toeplitz, block Toeplitz, multilevel Toeplitz,
-  circulant embedding, FFT matvec.
-- `block-linear-algebra`: explicit block algorithms, data layout, kernel
-  decomposition, and composite operators.
-- `performance-engineering`: memory hierarchy, BLAS levels, Roofline-style
-  reasoning, SIMD, threading, allocation control.
-- `numerical-validation`: correctness/reference implementations, numerical
-  error, benchmarking, and revalidation.
-- `toeplitz-preconditioning`: Strang/Chan circulant preconditioners,
-  block/multilevel extensions, ILU(k), block diagonal and block triangular
-  preconditioners.
-- `sparse-direct-solvers`: practical MUMPS usage, build/run/debug workflow,
-  sparse input, MPI and repeated factor/solve workflows.
-
-## Core policy
-
-Use mature libraries for optimized numerical kernels they already implement.
-Implement the mathematical structure, orchestration, storage, permutations,
-embedding, and composite algorithms that the libraries do not represent.
+Use mature libraries for optimized kernels they already implement. Implement
+the mathematical structure and orchestration that those libraries do not
+represent.
 
 Examples:
 
-- GEMM -> BLAS;
-- LU/QR/SVD/eigensolvers -> LAPACK;
-- FFT -> FFTW;
-- block-Toeplitz storage -> custom;
+- GEMM/TRSM -> BLAS;
+- dense LU/QR/SVD/eigensolvers -> LAPACK;
+- FFT/DFT -> FFTW;
+- sparse multifrontal factorization -> MUMPS when appropriate;
+- Toeplitz/multilevel storage -> custom;
 - Toeplitz-to-circulant embedding -> custom;
 - FFT Toeplitz matvec -> custom orchestration + FFTW;
+- block operator composition/permutations -> custom;
 - low-rank U(V^*x) -> custom orchestration + BLAS kernels.
 
-Do not optimize an unvalidated implementation.
+## Skills
+
+- `linear-algebra-backends`: choose and use BLAS/LAPACK/Eigen/FFTW.
+- `structured-matrices`: Toeplitz, block/multilevel Toeplitz, circulant, FFT
+  operators.
+- `block-linear-algebra`: heterogeneous block operators and explicit block
+  algorithms.
+- `performance-engineering`: profiling/optimization after correctness.
+- `numerical-validation`: reference checks, residual/error tests, benchmark
+  validation.
+- `toeplitz-preconditioning`: circulant, ILU(k), block preconditioners.
+- `sparse-direct-solvers`: MUMPS-oriented sparse direct solving.
+
+## Scope boundary
+
+This repository explains generic numerical-linear-algebra implementation.
+Application-domain reasons for matrix structure belong to the consuming domain
+skills (for example electromagnetic integral equations).

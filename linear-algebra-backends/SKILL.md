@@ -1,35 +1,24 @@
 ---
 name: linear-algebra-backends
-description: Decide what to implement manually versus delegate to BLAS, LAPACK, Eigen, or FFTW, with performance-oriented C++ usage.
+description: Choose or correctly call BLAS, LAPACK, Eigen, or FFTW for dense kernels, factorizations, transforms, layouts, and library-vs-custom decisions. Use when a backend API or library choice matters; do not trigger for generic algorithm theory with no backend usage.
 ---
 
-# Linear Algebra Backends
+# Linear-algebra backends
 
-Respond primarily in Russian. Keep standard technical terms in English when
-translation would reduce precision.
+Use optimized libraries for standard kernels; implement structure and
+orchestration yourself.
 
-## First decision
+## Reference routing
 
-Before writing a numerical kernel, ask:
+- Choosing custom vs library implementation:
+  read `references/LIBRARY_SELECTION.md`.
+- BLAS/CBLAS calls, leading dimensions, transpose/layout, batching:
+  read `references/BLAS.md`.
+- Dense factorizations/eigen/SVD and factor-once/solve-many:
+  read `references/LAPACK.md`.
+- Eigen expressions, Map/views, aliasing, and backend interaction:
+  read `references/EIGEN.md`.
+- FFT planning, layout, batching, threads, wisdom:
+  read `references/FFTW.md`.
 
-1. Is the exact mathematical operation already implemented by a mature library?
-2. Does using that API preserve the problem's exploitable structure?
-3. Is the operation performance-critical enough that the backend choice matters?
-4. Is the expected size regime compatible with the library's strengths?
-
-Use libraries for optimized kernels. Implement structure and orchestration
-yourself.
-
-## Default mapping
-
-- dense matrix-matrix -> BLAS GEMM;
-- matrix-vector -> BLAS GEMV or Eigen after benchmarking;
-- dot/axpy/norm -> BLAS/Eigen/compiler loop depending context;
-- dense LU/Cholesky/QR/SVD/eigensolvers -> LAPACK;
-- FFT/DFT -> FFTW;
-- high-level expression/container glue -> Eigen when it does not hide
-  performance-critical layout or temporaries;
-- structured storage, block orchestration, Toeplitz embedding, permutations,
-  masks, batching logic -> custom.
-
-Read the backend references before coding against a library.
+Do not read every backend reference for a single-library task.

@@ -1,41 +1,57 @@
-# Block and Multilevel Circulant Extensions
+# Block and multilevel circulant preconditioners
 
-Two common meanings must be separated.
+## Block Toeplitz with dense m-by-m blocks
 
-## Dense blocks with Toeplitz block pattern
+Let
 
-`A_ij = B_{i-j}`, with dense m-by-m blocks B.
+`A_ij=B[i-j]`.
 
-Apply the Strang/Chan projection in the outer Toeplitz index. The resulting
-block-circulant matrix is diagonalized in the outer index by FFT, leaving one
-small m-by-m matrix per Fourier mode.
+Construct a circulant approximation in the *outer Toeplitz index*, preserving
+the dense m-by-m block at each circular displacement.
 
-Application of P^{-1}:
+After FFT over the outer index, the preconditioner becomes one m-by-m matrix
+per Fourier mode.
 
-1. FFT every block-vector component over the Toeplitz dimension;
-2. for each Fourier mode solve the small dense block system;
-3. inverse FFT.
+### Apply inverse
 
-Pre-factor the per-mode small matrices if P is reused.
+Setup:
 
-## Multilevel Toeplitz / BTTB
+1. construct circulant block column C[k];
+2. FFT every scalar block channel `C_ab[k]`;
+3. for every Fourier mode q assemble small matrix `C_hat(q)`;
+4. factor each `C_hat(q)` once (LU/Cholesky as appropriate).
 
-Apply the circulant projection in each Toeplitz dimension. The resulting
-multilevel block-circulant operator is diagonalized by a multidimensional FFT.
-If a small dense physical/component block remains, solve that block separately
-at each Fourier grid point.
+Apply:
 
-## Optimal block projection
+1. FFT each component sequence of r;
+2. for every q solve `C_hat(q) z_hat(q)=r_hat(q)`;
+3. inverse FFT each component;
+4. normalize.
 
-Chan/Jin-type block extensions minimize Frobenius distance over a chosen class
-of block matrices with circulant blocks while preserving the outer block
-structure. Do not confuse "block circulant" with "circulant blocks".
+This is not scalar pointwise division unless m=1 or the block is diagonal in
+physical components.
 
-Sources:
-- Chan & Jin, DOI 10.1137/0913070.
-- Chan & Olkin, DOI 10.1007/BF02149764.
+## Multilevel/BTTB
 
-## Implementation test
+For d Toeplitz dimensions:
 
-For a tiny matrix explicitly assemble A and P, compare P with the structured
-constructor, and verify structured `apply_inverse(r)` against a dense solve.
+1. perform the chosen Strang/Chan projection in each structured dimension;
+2. obtain a BCCB/multilevel-circulant approximation;
+3. diagonalize structured dimensions with a d-D FFT;
+4. solve any remaining small physical/component block independently at each
+   Fourier grid point.
+
+Cache frequency-block factorizations when reused.
+
+## Validation
+
+For a tiny problem:
+
+- explicitly materialize A;
+- explicitly materialize P;
+- compare structured P construction;
+- compare `apply_P_inverse` with a dense solve;
+- then test inside the Krylov method.
+
+Do not confuse “block circulant” (outer pattern) with “circulant blocks”
+(inner block structure).

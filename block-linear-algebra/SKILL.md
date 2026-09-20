@@ -1,22 +1,22 @@
 ---
 name: block-linear-algebra
-description: Build explicit block algorithms and composite linear operators without unnecessarily materializing global dense matrices.
+description: Design explicit heterogeneous block algorithms when different blocks are dense, low-rank, diagonal, sparse, Toeplitz, or matrix-free. Use for block composition, data layout, and kernel decomposition; do not trigger for a single homogeneous Toeplitz operator.
 ---
 
-# Block Linear Algebra
+# Block linear algebra
 
-Think at the level of blocks before writing scalar loops.
+Write the block equations before choosing storage.
 
-Given a block system, write each output block as the sum of block applications.
-Choose the best implementation independently for each block.
+For `A=[A_ij]` and block vector x:
 
-Example:
+`y_i=sum_j A_ij x_j`.
 
-- Toeplitz block -> FFT apply;
-- low-rank block U V* -> two thin dense multiplies;
-- diagonal block -> pointwise apply;
-- dense block -> BLAS;
-- sparse block -> sparse kernel/direct solver.
+Choose the implementation of each block according to its own structure.
 
-Do not create a global dense matrix unless the problem size or user request
-makes that the correct representation.
+Default after correctness: prefer performance-transparent data layout and
+explicit kernels over abstraction that hides copies or allocation.
+
+Read:
+
+- `references/BLOCK_ALGORITHMS.md` for composite apply/solve patterns;
+- `references/DATA_LAYOUT.md` for physical storage and batching.

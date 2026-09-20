@@ -1,69 +1,91 @@
-# MUMPS 5.9.1: Practical C/C++ Reference
+# MUMPS practical reference
 
-Source: official MUMPS 5.9.1 Users' Guide, July 20 2026.
+Check the installed MUMPS version for exact controls/defaults.
 
-MUMPS solves sparse square systems with unsymmetric, symmetric positive
-definite, or general symmetric matrices. The main direct phases are analysis,
-factorization, and solve. The parallel implementation uses MPI and can also use
-OpenMP/multithreaded BLAS; the sequential build relies on BLAS/LAPACK.
+MUMPS supports sparse direct analysis/factorization/solve for unsymmetric and
+symmetric problems in sequential or MPI environments.
 
-## Minimal lifecycle
+## C interface lifecycle
 
-1. Initialize MPI.
-2. Create `DMUMPS_STRUC_C id{}` (or S/C/Z arithmetic variant).
-3. Set before initialization:
-   - `id.comm_fortran = USE_COMM_WORLD` (or converted communicator);
-   - `id.par`;
-   - `id.sym`;
-   - `id.job = -1`.
-4. Call `dmumps_c(&id)`.
-5. Provide matrix data.
-6. Call phases:
-   - `job=1`: analysis;
-   - `job=2`: factorization;
-   - `job=3`: solve;
-   - `job=6`: analysis + factorization + solve for a one-shot problem.
-7. After every phase inspect `id.infog[0]` / INFOG(1); negative means error.
-8. Set `job=-2`, call MUMPS to destroy the instance.
-9. Finalize MPI.
+For double real arithmetic use `DMUMPS_STRUC_C` and `dmumps_c`. Other
+arithmetic families are S/C/Z.
 
-If the sparsity pattern is reused with changing numerical values, perform
-analysis once, then repeat factorization/solve as allowed by the application.
+Typical lifecycle:
 
-## Centralized assembled input
+1. initialize MPI when using the normal parallel interface;
+2. zero/create the MUMPS struct;
+3. set communicator, PAR, SYM;
+4. `JOB=-1`: initialize MUMPS instance;
+5. provide problem/input controls;
+6. `JOB=1`: analysis;
+7. `JOB=2`: factorization;
+8. `JOB=3`: solve;
+9. inspect INFOG after each phase;
+10. `JOB=-2`: terminate instance;
+11. finalize MPI.
 
-Default assembled input uses:
+`JOB=6` can combine analysis+factorization+solve for one-shot examples, but
+explicit 1/2/3 phases are better for reusable production workflows.
 
-- `id.n`;
-- `id.nnz` (64-bit in current interface);
-- `id.irn`, `id.jcn`;
-- `id.a`.
+## Reuse
 
-C arrays `irn/jcn` contain Fortran-style 1-based matrix indices. Matrix entries
-may be supplied in arbitrary order; duplicate entries are summed. For symmetric
-modes, provide one triangle as documented.
+Same sparsity pattern, changed numerical values:
 
-The simple centralized case places matrix and RHS on the host rank.
+- reuse analysis when allowed by the chosen controls/pattern;
+- refactor numeric values;
+- solve one or more RHS.
+
+Same factorization, new RHS:
+
+- keep factors;
+- run solve phase only.
+
+Do not rerun analysis/factorization by habit.
+
+## Centralized assembled coordinate input
+
+Conceptually provide:
+
+- global n;
+- number of nonzeros;
+- row index array;
+- column index array;
+- value array.
+
+MUMPS C coordinate indices are global matrix indices in the Fortran/MUMPS
+1-based convention. Convert a 0-based application representation exactly once
+at the adapter boundary.
+
+Duplicates are allowed by MUMPS assembled input and are summed; do not rely on
+this accidentally when duplicates indicate an assembly bug.
+
+For symmetric modes, follow the exact documented triangle-storage contract.
 
 ## Distributed assembled input
 
-Distribution is controlled by `ICNTL(18)`. Current documentation recommends
-2 or 3, and calls 3 the simplest/natural distributed-entry mode.
+Modern MUMPS supports distributed assembled entries using local coordinate
+arrays with *global* row/column indices.
 
-For mode 3 provide on each participating rank:
+The `ICNTL(18)=3` style is the natural distributed-input path in recent MUMPS
+documentation; verify the installed-version manual before hard-coding a
+control value.
 
-- global `n`;
-- local nonzero count `nnz_loc`;
-- global index arrays `irn_loc/jcn_loc`;
-- local values `a_loc`.
-
-Use global, not local, matrix indices in these arrays.
+Each process provides its local nonzero count, global row/column index arrays,
+and local values according to the selected distribution mode.
 
 ## Arithmetic variants
 
-- `smumps_c`: real single;
-- `dmumps_c`: real double;
-- `cmumps_c`: complex single;
-- `zmumps_c`: complex double.
+- SMUMPS: real single;
+- DMUMPS: real double;
+- CMUMPS: complex single;
+- ZMUMPS: complex double.
 
-Choose the variant matching the project scalar type.
+Match project scalar type and headers/libraries.
+
+## Errors
+
+After every phase inspect at least the global status fields corresponding to
+INFOG(1) and the companion diagnostic field. Negative status indicates an
+error; interpret the exact code from the installed MUMPS manual.
+
+Do not swallow MUMPS diagnostics in a C++ wrapper.

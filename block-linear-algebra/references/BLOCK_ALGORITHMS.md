@@ -1,28 +1,39 @@
-# Block Algorithms
+# Block algorithms
 
-For A=[A_ij] and x=[x_j]:
+## Composite apply recipe
 
-`y_i = sum_j A_ij x_j`.
+1. define row/column block partitions;
+2. record exact dimensions;
+3. identify each block structure;
+4. implement/test each block apply independently;
+5. accumulate `y_i += A_ij x_j` without global dense materialization;
+6. only then fuse/batch operations.
 
-## Recipe
+Examples:
 
-1. Define block partitions and exact dimensions.
-2. Identify the structure of every block.
-3. Define storage/ownership for each block.
-4. Implement and test each block apply.
-5. Implement the composite apply without hidden materialization.
-6. Fuse or batch compatible operations only after profiling.
+- dense -> BLAS;
+- Toeplitz -> structured apply;
+- low-rank `U V^*` -> `tmp=V^*x; y+=U tmp`;
+- diagonal -> pointwise;
+- sparse -> sparse kernel/solver;
+- matrix-free -> callback/operator apply.
 
-## Repeated RHS
+## Repeated RHS / repeated equal block
 
-If many RHS vectors pass through the same dense/low-rank block, batch them into
-a matrix when possible to convert repeated GEMV-like work into GEMM-like work.
+If the same dense block acts on many vector segments, reshape/pack those
+segments into a thin matrix when worthwhile and use GEMM instead of repeated
+GEMV.
 
-## Low rank
+Include packing/scatter cost in the benchmark.
 
-For `A = U V^*`, apply as:
+## Block triangular solve
 
-1. `tmp = V^* x`;
-2. `y += U tmp`.
+For lower block triangular P:
 
-For multiple RHS use GEMM for both stages when dimensions justify it.
+for i from 0 to nb-1:
+
+`rhs_i = b_i - sum_{j<i} P_ij x_j`;
+
+solve diagonal block `P_ii x_i=rhs_i`.
+
+Factor diagonal blocks once when reused.

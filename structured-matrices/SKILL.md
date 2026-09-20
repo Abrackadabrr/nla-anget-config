@@ -1,21 +1,27 @@
 ---
 name: structured-matrices
-description: Design and implement Toeplitz, block-Toeplitz, multilevel Toeplitz, circulant, and FFT-accelerated matrix operators.
+description: Implement Toeplitz, block-Toeplitz, multilevel Toeplitz, circulant, or FFT-accelerated structured matrix operators and their storage/indexing. Use when displacement structure itself is central; do not trigger for arbitrary heterogeneous block systems with no Toeplitz/circulant structure.
 ---
 
-# Structured Matrices
+# Structured matrices
 
-Represent the mathematical structure explicitly. Do not materialize a dense
-matrix by default.
+Correctness first: implement a small direct/reference path before an FFT path.
 
 For every structure define:
 
 - logical dimensions;
-- stored coefficients;
-- index-to-displacement mapping;
-- vector/component ordering;
-- apply() complexity;
+- stored unique coefficients/blocks;
+- signed displacement convention;
+- flattening/component ordering;
 - storage complexity;
-- reference dense constructor for tests.
+- direct apply complexity;
+- accelerated apply complexity.
 
-Read the Toeplitz and FFT references before coding.
+## Reference routing
+
+- Scalar/basic Toeplitz: `references/TOEPLITZ.md`.
+- Block/multilevel/BTTB: `references/BLOCK_AND_MULTILEVEL_TOEPLITZ.md`.
+- Circulant embedding/FFT: `references/CIRCULANT_FFT.md`.
+
+For heterogeneous block compositions, use `block-linear-algebra`.
+For FFTW API details, use `linear-algebra-backends`.

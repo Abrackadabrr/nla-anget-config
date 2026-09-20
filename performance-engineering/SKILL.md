@@ -1,20 +1,28 @@
 ---
 name: performance-engineering
-description: Optimize numerical linear algebra for runtime and memory traffic using measurement, BLAS-level reasoning, cache/SIMD, and parallelism.
+description: Profile and optimize CPU numerical kernels for runtime, memory traffic, cache/SIMD, threading, BLAS efficiency, or scalability. Use when performance is being measured or improved; do not trigger merely because numerical code is being implemented.
 ---
 
-# Performance Engineering
-
-Default priority after correctness: performance, not API convenience.
+# Performance engineering
 
 Mandatory order:
 
-1. implement a clear correct version;
-2. validate;
+1. correct implementation;
+2. validation;
 3. benchmark/profile;
-4. identify the bottleneck;
-5. optimize the dominant cost;
+4. bottleneck classification;
+5. optimize dominant cost;
 6. revalidate;
 7. benchmark again.
 
-Never start by adding SIMD/OpenMP/FFT to an unvalidated algorithm.
+Default optimization target after correctness is runtime and memory efficiency,
+not API convenience, unless the user states otherwise.
+
+## Reference routing
+
+- Arithmetic intensity / Roofline reasoning:
+  `references/PERFORMANCE_MODEL.md`.
+- Memory, SIMD, OpenMP/BLAS/FFTW thread interaction:
+  `references/MEMORY_SIMD_PARALLEL.md`.
+- Benchmark methodology and compiler inspection:
+  `references/CPU_BENCHMARKING.md`.

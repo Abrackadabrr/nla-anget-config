@@ -1,48 +1,56 @@
-# Strang and T. Chan Circulant Preconditioners
+# Strang and T. Chan circulant preconditioners
 
-## Strang
+Fix Toeplitz convention:
 
-For a Toeplitz matrix `T=(t_{i-j})`, Strang's circulant copies the central
-Toeplitz diagonals and wraps them to form a circulant matrix.
+`T(i,j)=t[i-j]`, i,j=0,...,n-1.
 
-Implementation recipe:
+A circulant preconditioner is stored by its first column c and applied/inverted
+with FFTs.
 
-1. obtain the Toeplitz displacement coefficients;
-2. keep the near/main diagonals assigned to their natural circulant offsets;
-3. wrap the opposite-side coefficients into the remaining offsets;
-4. form the first circulant column;
-5. FFT it once to obtain circulant eigenvalues;
-6. apply `C^{-1}` by FFT -> pointwise divide -> inverse FFT;
-7. guard against zero/tiny eigenvalues according to the problem.
+## Strang circulant: implementation recipe
 
-For even sizes, define the Nyquist/middle-diagonal convention explicitly and
-test it.
+Strang's construction keeps the Toeplitz diagonals closest to the main
+diagonal and wraps them into a circulant.
 
-Primary source: G. Strang (1986), DOI 10.1002/sapm1986742171.
+Algorithm:
 
-## T. Chan optimal circulant
+1. initialize c[0]=t[0];
+2. for circular offset k, choose the Toeplitz diagonal representative with the
+   smallest-magnitude signed displacement (with a documented tie convention
+   when n is even);
+3. set c[k] to that Toeplitz coefficient;
+4. precompute `lambda=FFT(c)`;
+5. apply `P^{-1}r` as FFT(r), divide by lambda, inverse FFT, normalize.
 
-Chan defines the circulant `C` minimizing `||C-T||_F`.
+For even n explicitly document which middle diagonal is selected. Test the
+assembled circulant against the intended paper/code convention.
 
-For an n-by-n Toeplitz matrix, a convenient first-column formula is
+## T. Chan Frobenius-optimal circulant
 
-`c_k = ((n-k) t_k + k t_{k-n}) / n`,  k=0,...,n-1,
+For the same displacement convention, the optimal circulant first column is:
 
-with displacement notation consistent with `T(i,j)=t_{i-j}`.
+`c[k] = ((n-k)*t[k] + k*t[k-n]) / n`,
+for k=0,...,n-1,
 
-Implementation recipe:
+where `t[k]` is the nonnegative displacement coefficient and `t[k-n]` the
+negative displacement that maps to the same circular offset.
 
-1. fix Toeplitz displacement convention;
-2. for every circulant offset k combine the two Toeplitz diagonals that map to
-   that circular offset with weights `(n-k)/n` and `k/n`;
-3. FFT the first column;
-4. apply inverse as pointwise division in Fourier space;
-5. validate by explicitly minimizing/projection-checking on tiny matrices.
+Recipe:
 
-Primary source: T. F. Chan (1988), DOI 10.1137/0909051.
+1. build c with the weighted formula;
+2. FFT c once;
+3. apply inverse by Fourier-space division;
+4. validate P against explicit dense Frobenius projection on tiny matrices.
 
-## Solver compatibility
+## Numerical inversion
 
-PCG requires the effective preconditioner to satisfy the required Hermitian
-positive-definite assumptions. For nonsymmetric/indefinite systems use an
-appropriate Krylov method instead of assuming CG applicability.
+Do not silently divide by near-zero Fourier eigenvalues.
+
+If regularization is needed, make the threshold/shift part of the
+preconditioner definition and report its effect.
+
+## Krylov compatibility
+
+CG/PCG requires the matrix/preconditioner properties required by that method.
+For nonsymmetric/indefinite problems choose an appropriate Krylov solver rather
+than assuming circulant preconditioning implies CG compatibility.

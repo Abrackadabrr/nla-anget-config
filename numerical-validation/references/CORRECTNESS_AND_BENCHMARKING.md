@@ -1,30 +1,52 @@
-# Correctness and Benchmarking
+# Correctness and benchmarking
 
-## Correctness workflow
+## Operator workflow
 
-1. Build a tiny dense/reference version.
-2. Test deterministic hand-checkable cases.
-3. Test random real and complex cases.
-4. Compare relative error, e.g.
-   `||y_fast-y_ref||_2 / ||y_ref||_2`.
-5. Add edge cases: n=1, odd/even sizes, non-square block grids, zero blocks,
-   singular/ill-conditioned cases where relevant.
-6. Only then optimize.
+1. build tiny dense/reference implementation;
+2. test hand-checkable cases;
+3. test random real and complex cases;
+4. compare normwise relative error;
+5. separately test integer/index mappings;
+6. test awkward sizes (1, odd/even, rectangular/non-cubic);
+7. only then optimize.
 
-## Solver validation
+For a fast matvec:
 
-Report both relative residual and, when a trusted solution is known, forward
-error. Residual alone does not prove an accurate solution for an ill-conditioned
-system.
+`rel = ||y_fast-y_ref||_2 / ||y_ref||_2`.
 
-## Benchmarking
+Also inspect componentwise errors when cancellation/local scaling matters.
 
-- exclude setup when measuring repeated apply unless setup is part of the user
-  workload;
-- separately report setup/planning/factorization and repeated apply/solve;
-- warm up;
-- use multiple repetitions;
-- control thread counts;
-- avoid debug builds;
-- ensure results are consumed so work is not optimized away;
-- verify correctness in the benchmark executable or adjacent tests.
+## Linear-system validation
+
+Report true original-system residual:
+
+`||b-Ax|| / ||b||`.
+
+If a trusted solution is known, report forward error as well.
+
+For ill-conditioned systems, a small residual does not imply small forward
+error. Interpret the expected error using conditioning and floating-point
+precision.
+
+Where useful, report a backward-error measure rather than only raw residual.
+
+## Approximate/compressed operators
+
+If solving with `A_tilde`, report separately:
+
+- `||A_tilde x-A x||` on test vectors;
+- residual for the system actually solved;
+- residual in the original A system if A can be applied;
+- physical/application observable error.
+
+## Reproducibility
+
+Record:
+
+- random seed;
+- scalar precision;
+- backend/library;
+- thread count;
+- tolerance;
+- stopping rule;
+- size/problem generator.

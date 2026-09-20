@@ -1,19 +1,34 @@
-# Performance Model
+# Performance model
 
-Estimate before optimizing:
+Before optimizing estimate or measure:
 
-- operation count;
-- bytes read/written;
+- FLOPs;
+- bytes read/written from the relevant memory level;
 - arithmetic intensity;
 - working-set size;
+- data reuse;
 - allocation count;
-- reuse distance;
-- synchronization/communication.
+- synchronization/communication;
+- setup versus repeated-apply cost.
 
-Use Roofline-style reasoning qualitatively or quantitatively.
+## Diagnose
 
-A memory-bound kernel is not fixed by reducing a few FLOPs. A compute-bound
-kernel is not fixed by prefetching data that is already reused efficiently.
+If measured throughput follows memory bandwidth and arithmetic intensity is
+low, reducing a handful of FLOPs is unlikely to matter.
 
-Prefer transformations that increase reuse, especially conversion of repeated
-Level-2 BLAS work into Level-3 BLAS work.
+If data is reused enough for compute to dominate, use tuned Level-3 kernels,
+vectorization, or algorithmic blocking.
+
+## High-value transformations
+
+Often worth testing:
+
+- many GEMV -> GEMM;
+- reuse/factor once -> solve many;
+- cache invariant FFT kernel spectra/plans;
+- cache block factorizations;
+- avoid repeated format conversion;
+- fuse passes only when it reduces meaningful memory traffic;
+- change algorithmic complexity before micro-optimizing loops.
+
+Report the performance model assumptions with benchmark results.

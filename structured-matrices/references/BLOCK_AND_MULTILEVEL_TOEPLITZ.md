@@ -1,30 +1,43 @@
-# Block and Multilevel Toeplitz
+# Block and multilevel Toeplitz
 
-## Block Toeplitz
+## Distinguish the structures
 
-`A_ij = B_{i-j}`, where each `B_k` is itself a matrix/operator.
+Do not conflate:
 
-Do not confuse:
+1. Toeplitz matrix with dense blocks:
+   `A_ij=B_{i-j}`;
+2. generic block matrix whose individual blocks are Toeplitz;
+3. block Toeplitz with Toeplitz blocks (BTTB);
+4. d-level Toeplitz from a d-dimensional translation grid;
+5. small physical-component blocks attached to each multilevel displacement.
 
-- Toeplitz matrix with dense blocks;
-- block matrix whose blocks are Toeplitz;
-- block Toeplitz with Toeplitz blocks (BTTB);
-- multilevel Toeplitz induced by a multidimensional grid.
+## d-level displacement rule
 
-## d-level Toeplitz
+For multi-indices p,q:
 
-For multi-indices i,j,
+`A_{p,q}=K_{p-q}`.
 
-`A_{i,j} = K_{i-j}`.
-
-The coefficient object at each displacement may itself be a small dense block,
-for example a 3x3 vector-component coupling matrix.
+For a vector-valued operator, `K_delta` may be a small dense m-by-m block.
 
 ## Implementation recipe
 
-1. Fix flattening order of logical indices.
-2. Define signed displacement coordinates.
-3. Store one coefficient block per reachable displacement.
-4. Write direct structured matvec.
-5. Validate against dense materialization for tiny sizes.
-6. Only then implement multidimensional circulant embedding/FFT.
+1. choose logical grid dimensions;
+2. choose flattening order;
+3. define signed displacement per dimension;
+4. define physical/block component order;
+5. implement integer mapping functions separately;
+6. store one coefficient block per reachable displacement;
+7. implement direct structured apply;
+8. compare to explicit dense materialization for tiny sizes;
+9. only then implement multidimensional circulant embedding.
+
+## Mapping tests
+
+Test pure integer mappings independently:
+
+- multi-index -> flat index -> multi-index;
+- pair(p,q) -> displacement;
+- displacement -> stored kernel index;
+- negative displacement wrapping for circulant embedding.
+
+This isolates indexing errors from floating-point errors.

@@ -1,47 +1,83 @@
-# FFTW 3.3.11 Practical Reference
+# FFTW 3 practical reference
 
-Source basis: official FFTW 3.3.11 User Manual.
+FFTW computes Fourier transforms. It does not know about Toeplitz matrices,
+circulant embedding, physical block semantics, or application masks.
 
-FFTW provides 1-D and multidimensional DFTs, real/complex transforms, multiple
-and strided transforms, threaded transforms, MPI transforms, aligned allocation,
-plans, and wisdom.
+## Lifecycle
 
-## Basic workflow
+1. choose dimensions, transform kind, strides/batches, and in/out-of-place;
+2. allocate suitably aligned buffers (FFTW allocators are convenient);
+3. create plan during setup;
+4. execute it repeatedly;
+5. destroy plan after the repeated workload;
+6. free buffers.
 
-1. Allocate arrays with `fftw_malloc`/`fftw_alloc_complex` when practical to
-   preserve SIMD alignment.
-2. Create a plan once for the intended dimensions/layout.
-3. Use a planner flag appropriate to setup-cost versus repeated-execution
-   tradeoff.
-4. Execute the plan repeatedly.
-5. Destroy the plan and free aligned storage.
-6. Reuse/import wisdom only when the environment and layout assumptions are
-   compatible.
+Never create FFT plans inside a Krylov matvec loop.
 
-## Important facts
+## Planning flags
 
-- FFTW uses row-major multidimensional C-array conventions in the C interface.
-- FFTW transforms are not normalized. If your mathematical inverse requires a
-  1/N factor, apply it explicitly.
-- The advanced/guru interfaces are appropriate for batches, strides, and custom
-  layouts.
-- FFT planning can overwrite input for some planner modes; consult the exact
-  plan routine contract.
-- Plan creation and plan execution have different thread-safety concerns.
-- Avoid creating plans inside an iterative solver loop.
+- `FFTW_ESTIMATE`: cheap planning, no runtime measurement of alternatives;
+- `FFTW_MEASURE`: measures plans; higher setup cost, often useful for reused
+  transforms;
+- `FFTW_PATIENT` / `FFTW_EXHAUSTIVE`: more expensive search for heavily
+  reused transforms;
+- `FFTW_WISDOM_ONLY`: require applicable wisdom.
+
+Important: measurement-oriented planning can overwrite input arrays. Create
+plans before initializing production input, or follow the exact flag/routine
+contract.
+
+## Normalization
+
+FFTW forward/backward transforms are unnormalized. Apply the mathematical
+normalization exactly once where your algorithm requires it.
+
+## Batched/strided transforms
+
+Use `fftw_plan_many_dft` or guru interfaces when data represents many
+component/block transforms with regular strides. Avoid manual loops of tiny
+plans when one batched plan expresses the same layout.
+
+Document:
+
+- transform rank and dimensions;
+- howmany;
+- stride/distances;
+- component ordering;
+- padding/cropping.
+
+## Threads
+
+For threaded FFTW:
+
+1. initialize FFTW threading;
+2. select thread count before plan creation;
+3. create plans from a controlled/single planning context;
+4. execute planned transforms;
+5. avoid oversubscription with outer OpenMP/BLAS threads.
+
+Plan execution is designed for concurrent use; planner operations share global
+state and require more care. Benchmark thread count: small transforms often do
+not benefit.
+
+## Wisdom
+
+Wisdom can amortize expensive planning for repeated known layouts. Wisdom is
+layout/stride/planning-condition dependent; do not treat it as a portable
+binary plan across arbitrary machines/configurations.
 
 ## Toeplitz use
 
-FFTW only computes transforms. For Toeplitz multiplication you must implement:
+For Toeplitz FFT matvec, *you* implement:
 
-1. Toeplitz coefficient layout;
+1. coefficient/displacement storage;
 2. circulant embedding;
 3. zero padding;
-4. mapping of negative offsets;
-5. FFT of the embedded kernel;
-6. frequency-domain multiplication;
-7. inverse FFT;
-8. normalization and crop.
+4. negative-offset mapping;
+5. frequency-domain block coupling;
+6. inverse normalization;
+7. cropping.
 
-For block kernels, implement component coupling yourself and use FFTW for each
-required transform/batch.
+FFTW supplies the transforms only.
+
+See `assets/fftw_many.cpp` for a minimal batched complex-transform example.

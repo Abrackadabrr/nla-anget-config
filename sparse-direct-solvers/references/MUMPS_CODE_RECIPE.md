@@ -1,64 +1,65 @@
-# MUMPS C/C++ Coding Recipe
+# MUMPS C/C++ coding recipe
 
-A minimal double-precision unsymmetric skeleton:
+## Production structure
 
-```cpp
-#include <mpi.h>
-#include "dmumps_c.h"
+Prefer explicit phases:
 
-#define JOB_INIT -1
-#define JOB_END  -2
-#define USE_COMM_WORLD -987654
-
-int main(int argc, char** argv) {
-    MPI_Init(&argc, &argv);
-
-    int rank = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-    DMUMPS_STRUC_C id{};
-    id.comm_fortran = USE_COMM_WORLD;
-    id.par = 1;
-    id.sym = 0;
-    id.job = JOB_INIT;
-    dmumps_c(&id);
-
-    // On the host for centralized assembled input:
-    // id.n = n;
-    // id.nnz = nnz;
-    // id.irn = row_indices_1_based;
-    // id.jcn = col_indices_1_based;
-    // id.a = values;
-    // id.rhs = rhs;
-
-    id.job = 6;              // one-shot analysis+factorization+solve
-    dmumps_c(&id);
-
-    if (id.infog[0] < 0) {
-        // report INFOG(1), INFOG(2) before cleanup
-    }
-
-    id.job = JOB_END;
-    dmumps_c(&id);
-
-    MPI_Finalize();
-}
+```text
+MPI_Init
+create/configure MUMPS handle
+JOB=-1 initialize
+set matrix structure
+JOB=1 analyze
+set/update matrix values
+JOB=2 factor
+set RHS
+JOB=3 solve
+independent residual check
+JOB=-2 finalize MUMPS
+MPI_Finalize
 ```
 
-For production code prefer explicit `job=1,2,3` when phases have different
-lifetimes or repeated solves/factorizations are expected.
+## Wrapper responsibilities
 
-## Wrapper design
+A C++ wrapper may use RAII but must keep visible:
 
-A C++ wrapper should own the MUMPS instance and factor lifecycle, but should not
-hide:
-
-- symmetry mode;
 - communicator;
-- matrix distribution;
-- analysis/factor/solve phases;
-- MUMPS error codes;
-- index-base conversion.
+- SYM/PAR;
+- scalar arithmetic family;
+- matrix ownership/lifetime;
+- analysis/factor/solve state;
+- index conversion;
+- INFO/INFOG diagnostics.
 
-Convert 0-based application indices to 1-based MUMPS indices exactly once in a
-well-defined adapter layer.
+Useful API shape:
+
+```cpp
+analyze(pattern);
+factor(values);
+solve(rhs);
+```
+
+rather than one opaque `solve_everything()` method.
+
+## Index adapter
+
+If application sparse indices are 0-based:
+
+1. allocate MUMPS index arrays during setup;
+2. convert each index +1;
+3. validate min/max;
+4. reuse those arrays for the pattern lifetime.
+
+Do not repeatedly convert indices inside solve().
+
+## Residual
+
+After MUMPS returns x, independently compute
+
+`r=b-Ax`
+
+using the application matrix representation and report
+`||r||/||b||`.
+
+A successful MUMPS status is necessary but not a substitute for application
+validation.

@@ -1,20 +1,27 @@
-# Eigen Practical Reference
+# Eigen practical reference
 
-Use Eigen as a C++ expression/container layer when it preserves the required
-layout and does not introduce unwanted temporaries.
+Eigen is useful as a C++ matrix/vector/view/expression layer. It does not remove
+the need to understand data layout or backend choice.
 
 ## Rules
 
-- Use `.noalias()` where the expression contract permits it and aliasing is
-  otherwise conservatively assumed.
-- Prefer fixed-size Eigen objects for genuinely small compile-time kernels when
-  that simplifies vectorization.
-- For large dense kernels, know whether the build is configured to use an
-  external BLAS and benchmark the actual path.
-- Do not assume an Eigen expression is allocation-free: inspect or benchmark.
-- Do not force a structured operator into `MatrixX*` solely to use Eigen
-  syntax.
-- Keep ownership and views explicit; `Map` can expose existing contiguous or
-  strided storage without copying.
+- Use `.noalias()` only when the destination truly does not alias expression
+  inputs.
+- Use `Eigen::Map`/strided views to expose existing buffers without copies.
+- Prefer fixed-size objects for genuinely small compile-time kernels when this
+  helps generated code.
+- For large dense products, benchmark the actual configuration and know whether
+  Eigen is using its own kernels or an external BLAS.
+- Inspect temporaries in hot expressions; convenience syntax is not proof of
+  zero allocation/copy.
+- Do not express a Toeplitz/matrix-free operator as `MatrixX*` merely to gain
+  Eigen syntax.
 
-Eigen is not a replacement for an explicit structured-matrix design.
+## Solver boundary
+
+Eigen iterative solvers can be useful orchestration, but a custom
+performance-critical operator/preconditioner should expose a direct apply/solve
+path with clear ownership and no hidden materialization.
+
+If solver overhead becomes significant relative to matvec/preconditioner cost,
+profile it rather than assuming the high-level solver remains negligible.

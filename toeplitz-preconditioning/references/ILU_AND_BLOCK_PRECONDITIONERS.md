@@ -1,64 +1,74 @@
-# ILU(k) and Classical Block Preconditioners
+# ILU(k) and classical block preconditioners
 
-## ILU(k): implementation recipe
+## ILU(k)
 
-ILU(k) keeps fill entries according to level-of-fill.
+ILU(k) is defined from a sparse matrix graph and level-of-fill.
 
-Conceptually:
+### Level construction
 
-1. start with the sparse pattern of A and assign level 0 to original nonzeros;
-2. perform Gaussian elimination in the chosen ordering;
-3. when elimination would create/update entry (i,j) through pivot k, assign
+1. original nonzeros receive level 0;
+2. during elimination through pivot p, a potential fill (i,j) receives
    candidate level
-   `level(i,k) + level(k,j) + 1`;
-4. retain an entry only when its minimum discovered level is <= k;
-5. store the resulting incomplete L and U factors;
-6. apply the preconditioner by triangular solves, never by forming
-   `(LU)^{-1}`.
+   `level(i,p)+level(p,j)+1`;
+3. retain the minimum level discovered for that position;
+4. discard entries whose level exceeds k.
 
 Thus:
-- ILU(0): original sparsity pattern only;
-- ILU(1): one generation of fill allowed by the level rule;
-- ILU(2): two levels.
 
-Ordering strongly affects fill, stability, and convergence. Handle missing or
-tiny pivots deliberately; do not silently divide by them.
+- ILU(0): no structural fill beyond original sparsity;
+- ILU(1): one fill level;
+- ILU(2): two fill levels.
+
+### Implementation recipe
+
+1. choose/reorder sparse matrix;
+2. build symbolic level-k pattern;
+3. perform incomplete numeric elimination restricted to that pattern;
+4. handle tiny/zero pivots explicitly;
+5. store L/U factors;
+6. apply with triangular solves.
+
+Never form `(LU)^{-1}`.
+
+### Dense Toeplitz warning
+
+A dense Toeplitz matrix has O(n^2) nonzeros despite O(n) structural storage.
+Converting it to a general sparse matrix and applying ILU(k) normally destroys
+the intended Toeplitz complexity.
+
+Use ILU only after a meaningful sparse approximation/surrogate has been
+defined, or when the original matrix is genuinely sparse.
 
 ## Block diagonal
 
-For block partition `A=[A_ij]`:
+For `A=[A_ij]`:
 
-`P = diag(A_11, A_22, ..., A_pp)`.
+`P=diag(A_11,...,A_pp)`.
 
-Recipe:
+Setup:
 
-1. extract/factor each diagonal block;
-2. apply P^{-1} with independent block solves;
-3. parallelize block solves when appropriate.
+1. select diagonal blocks;
+2. factor each once;
+3. cache factors.
 
-Use exact small dense LU/Cholesky or another appropriate local solver.
+Apply: independent block solves.
+
+When diagonal blocks are identical, store/factor one representative and reuse
+it where the algebra truly matches.
 
 ## Block lower triangular
 
-`P = tril(A)` or a selected block-lower approximation.
+Choose a lower block approximation P.
 
-Apply P^{-1} by block forward substitution:
+Apply by forward substitution:
 
-for i=1..p:
-`rhs_i = r_i - sum_{j<i} P_ij z_j`;
-solve `P_ii z_i = rhs_i`.
+for i:
+`rhs_i=r_i-sum_{j<i}P_ij z_j`;
+solve `P_ii z_i=rhs_i`.
 
-Factor diagonal blocks once. Do not form a global inverse.
+Factor diagonal blocks once.
 
-## Comparison protocol
+## Evaluation
 
-For each preconditioner measure:
-
-- setup time;
-- memory;
-- apply time;
-- Krylov iterations;
-- total solve time;
-- robustness across representative matrices.
-
-A preconditioner with fewer iterations is not automatically faster.
+Compare setup, memory, one apply, Krylov iterations, and total time. Fewer
+iterations alone is not a performance result.

@@ -1,21 +1,39 @@
-# Toeplitz Matrices
+# Toeplitz matrices
 
-For `T in C^{n x n}`,
+For `T in C^{n x n}` use the signed displacement convention
 
-`T(i,j) = t[i-j]`.
+`T(i,j)=t[i-j]`.
 
-Store the first column and first row, or a single displacement array indexed
-from `-(n-1)` through `n-1`.
+Store either:
 
-## Reference matvec
+- first column + first row (sharing t[0]); or
+- one displacement array for `-(n-1) ... (n-1)`.
 
-Implement the direct O(n^2) form first. It is the correctness oracle for
-structured and FFT paths.
+## Reference apply
 
-## FFT path
+Before FFT acceleration implement:
 
-Embed T into a circulant matrix of sufficient size, pad x, FFT both embedded
-kernel and x, multiply pointwise, inverse FFT, normalize, and crop.
+`y_i = sum_j t[i-j] x_j`.
 
-Test nonsymmetric complex matrices; symmetric examples can hide offset/sign
-bugs.
+Keep it obvious and O(n^2). This is a correctness oracle, not the production
+large-n algorithm.
+
+## Required tests
+
+Use:
+
+- real nonsymmetric Toeplitz;
+- complex nonsymmetric Toeplitz;
+- n=1;
+- odd/even n;
+- random vectors.
+
+Symmetric examples alone can hide sign/reversal mistakes.
+
+## Complexity
+
+- explicit dense storage/apply: O(n^2) storage/work;
+- displacement storage + direct apply: O(n) storage, O(n^2) work;
+- circulant-embedded FFT apply: O(n) storage, O(n log n) work plus setup.
+
+Keep setup and repeated apply timings separate.
